@@ -1,0 +1,38 @@
+1. Làm thế nào để khởi động SmartConfig cho 1 HC trong gia đình khi mua sản phẩm về? 
+- Raspberry k có tích hợp chức năng SmartConfig để thu nhận gói tin truyền từ ĐT qua và thiết lập mạng. 
+Dùng Rasp phải tìm cách thực hiện thiết lập mạng thủ công?!
+
+2. Về MQTT, Rasp có thể đóng vai trò là 1 broker hoặc 1 client. Nhưng nếu là client để thực hiện pub/sub thì 
+phải thực hiện thủ công qua môi trường dòng lệnh. Vì hiện tại chưa có thư viện MQTT như PubSubClient.h cho 
+phần cứng hay MQTT library cho mobile. Nên việc tích hợp vào mã nguồn cho CA-HC để tự động hóa việc điều
+khiển gần như bó tay. @@? Hay phải tự viết thư viện MQTT rồi code lại T.T 
+
+3. Về việc Startup, Rasp có thể Startup được một số chương trình dạng application có sẵn, kiểu như UNI-KEY trên
+Windows - hay tự mở trình duyệt khi bật. Chứ việc sử dụng mã hóa dòng lệnh kiểu "sudo" hay yêu cầu "password" 
+để chạy 1 file mã nguồn lên (ví dụ phần điều khiển thu - nhận RF từ các cảm biến hoặc công tắc CA-SWR) thì Rasp
+không tự Startup được mấy cái chương trình đó lên. Mã phải thực hiện thao tắc. 
+- Hoặc ít nhất cũng có cách - đó là phải thực hiện chỉnh trên điện thoại, làm cách nào đó gửi lệnh điều khiển để chạy 
+mấy chương trình đó lên khi khởi động lại CA-HC chứ nó không tự giải quyết đc.
+
+4. Thiếu thư viện về MQTT còn dẫn đến tình trạng khó khăn trong vấn đề cập nhất số lượng thiết bị hiện tại mà người chủ
+sở hữu có để lấy thông tin topic cũng như RF channel nữa. 
+
+5. Đối với một HC hiện tại, người ta dùng 1 modifier - micro-processor kết hợp với micro-controler. Trong đó, việc vận hành
+HC sẽ được tối ưu nhất về mặt xử lý lẫn truyền - nhận tín hiệu. Việc xử lý chủ yếu kết hợp dữ liệu rồi gửi lên server quản lý.
+Việc vận hành của vi điều khiển chỉ là vấn đề thu nhận thông tin - truyền tín hiệu và đẩy dữ liệu lên monitor hiện thị. Như vậy
+thường 1 HC sẽ vẫn cần mạnh về vấn để xử lý phần cứng cho vi điều khiển hơn. 
+Đối với raspi, suy cho cùng nếu sử dụng 1 máy tính nhúng làm HC thì vừa thừa tính năng - mà lại vừa thiếu chức năng. Raspi
+dư tính năng với việc xử lý đồ họa, cơ bản một HC thì không cần đến, nhưng việc hỗ trợ cho phần vi điều khiển với nhiều thư
+viện chức năng chuyên dụng và khả năng tái thiết lập chế độ lại không có thì việc sử dụng Raspi có lẽ không phù hợp lắm. 
+
+6. Thiết nghĩ với thời điểm hiện tại. Việc sử dụng 1 arduino mega kết hợp module wifi esp12F với nhau có vẻ vẫn là phương án
+tối ưu. Vì mega có khả năng xử lý nhiều luồng thông tin dữ liệu lớn. 
+Chưa kể Mega còn có tích hợp 2 khu vực giao tiếp SPI - tức là có thể gắn 2 anten RF24 xử lý đến 15-20 thiết bị - công tắc khác 
+nhau 1 lúc. Giao tiếp I2C cũng có nhưng 2 khu vực kết nối. 
+Số lượng kết nối TX-RX để liên kết với hệ thống ngoại vi khác là 4 cặp.
+Tức là nếu dư giả vẫn có thể quất được 2 màn hình giao tiếp hiển thị số liệu trong nhà và 2 module wifi esp12F xử lý việc truyền
+nhận dữ liệu với mạng và MQTT.
+Từ số lượng TX-RX lớn, ta có thể phần 2 luồng hoạt động mạng, 1 luồng điều khiển - gửi trạng thái, 1 luồng đưa dữ liệu cảm biến 
+riêng. 
+Ngoài ra nếu muốn làm phần màn hình cảm ứng hiển thị thông số trong nhà, trang thái các thiết bị hay công tắc vẫn có thể dùng chân
+TX-RX để truyền nhận dữ liệu với Mega và hiển trị điều khiển trực tiếp thông qua màn hình. 
