@@ -5,20 +5,22 @@
 #include <PubSubClient.h>
 #include <Ticker.h>
 
-/* In this product - the address (channel) to communicate is define as SWR (convert to decimal) 
-+ 'date make device' + 'product no.' ; In this case, SWR is known as '83 87 82' and add with the date 
-making device for example today is Mar 10th and this is the first product in that day; then the address 
-for this SWR is: const byte address[15] = "83878210032001"  ( 83 87 82 | 10 03 20 | 01 )          
-83878226022001 (14) - [15]
-83878226022002 (14) - [15]
-83878226022003 (14) - [15]
+/* In this product - the address (channel) to communicate is define as <the code of product> (2 degits)
++ <timestamp_of_production> (10 degits). With list product code:
+- CA-SWR: 10;
+- CA-SWR2: 20;
+- CA-SWR3: 30;
+And the timestamp when we create the product, so we have this list:        
+CA-SWR: 101584324363 (12)
+CA-SWR2: 201584324393 (12)
+CA-SWR3: 301584324410 (12)
 */
 
 Ticker ticker;
 RF24 radio(2, 15); //nRF24L01 (CE,CSN) connections PIN
-const uint64_t address_CA_SWR = 0xE8E8F0F0A1LL;
-const uint64_t address_CA_SWR2 = 0xE8E8F0F0A2LL;
-const uint64_t address_CA_SWR3 = 0xE8E8F0F0A3LL;
+const uint64_t address_CA_SWR = 101584324363;
+const uint64_t address_CA_SWR2 = 101584324393;
+const uint64_t address_CA_SWR3 = 0x4637D3973ALL;
 
 boolean smartConfigStart = false;
 
