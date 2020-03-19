@@ -315,15 +315,15 @@ void setup()
 
 void loop()
 {
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    if (!client.connected())
-    {
-      reconnect_mqtt();
-    }
-    else
-      client.loop();
-  }
+  // if (WiFi.status() == WL_CONNECTED)
+  // {
+  //   if (!client.connected())
+  //   {
+  //     reconnect_mqtt();
+  //   }
+  //   else
+  //     client.loop();
+  // }
 
   uint8_t pipeNum;
   radio.openReadingPipe(1, address_CA_SWR);
