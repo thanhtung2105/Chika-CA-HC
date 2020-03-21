@@ -5,14 +5,22 @@
 #include <PubSubClient.h>
 #include <Ticker.h>
 
-/* In this product - the address (channel) to communicate is define as SWR (convert to decimal) 
-+ 'date make device' + 'product no.' ; In this case, SWR is known as '83 87 82' and add with the date 
-making device for example today is Feb 17th and this is the first product in that day; then the address 
-for this SWR is: const byte address[15] = "83878217022001"  ( 83 87 82 | 17 02 20 | 01 )          */
+/*
+	Product code: 2b92934f-7a41-4ce1-944d-d33ed6d97e13
+	RF channel (1 button): 1002502019001
+	Button topic: 7362251b-a856-4ef2-ab9b-33fd27b137a8
+*/
+
+/* In this product - the address (channel) to communicate is define as <the HC code> (3 degits)
++ <company code> (7 degits) + <product code> (3 degits). So we have the following list product code:      
+CA-SWR: 1002502019001 (13)
+CA-SWR2: 1002502019002 (13)
+CA-SWR3: 1002502019003 (13)
+*/
 
 Ticker ticker;
 RF24 radio(2, 15); //nRF24L01 (CE,CSN) connections PIN
-const byte address[6] = "12345";
+const uint64_t address = 1002502019001; 	   //Changeable
 boolean smartConfigStart = false;
 
 const char *ssid = "username wifi";
@@ -26,8 +34,8 @@ const byte address[15] = "**************";
 boolean stateButton[1];
 boolean stateButton_MQTT[1];
 
-//Topic: product_id/button_id             char[37] = b
-const char *CA_SWR = "2a0a6b88-769e-4a63-ac5d-1392a7199e88/be47fa93-15df-44b6-bdba-c821a117cd41";
+//Topic: product_id/button_id             char[37] = 7
+const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13/7362251b-a856-4ef2-ab9b-33fd27b137a8";
 const int smartConfig_LED = 16;
 
 //Config MQTT broker information:
@@ -140,7 +148,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   }
   Serial.println();
 
-  if ((char)topic[37] == 'b')
+  if ((char)topic[37] == '7')
     switch ((char)payload[0])
     {
     case '1':
