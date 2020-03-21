@@ -5,20 +5,22 @@
 #include <PubSubClient.h>
 #include <Ticker.h>
 
-/* In this product - the address (channel) to communicate is define as SWR (convert to decimal) 
-+ 'date make device' + 'product no.' ; In this case, SWR is known as '83 87 82' and add with the date 
-making device for example today is Feb 17th and this is the third product in that day; then the address 
-for this SWR is: const byte address[15] = "83878217022003"  ( 83 87 82 | 17 02 20 | 03 )          
+/* In this product - the address (channel) to communicate is define as <the HC code> (3 degits)
++ <company code> (7 degits) + <product code> (3 degits). So we have the following list product code:      
+CA-SWR: 1002502019001 (13)
+CA-SWR2: 1002502019002 (13)
+CA-SWR3: 1002502019003 (13)
 
-	Product code: 740a8d1e-c649-475e-a270-c5d9a44b40a8
-	RF channel (3 button): 83878226022003
-	Button topic: 774f2306-51ad-4bf1-ba9e-0ddee9bd2375
-                5124ba3a-7a45-472b-8468-6f2a041733ac
-                a0087ff7-3613-442f-b6c5-0d5d2f0f1a30  */
+	Product code: ebb2464e-ba53-4f22-aa61-c76f24d3343d
+	RF channel (3 button): 1002502019003
+	Button topic: 5faf98dd-9aa4-4a02-b0dc-344d5c6304fe
+                9554cca1-0133-4682-81f9-acc8bcb40121
+                7b777605-1ea2-4878-9194-1b1e72edcb98
+*/
 
 Ticker ticker;
 RF24 radio(2, 15); //nRF24L01 (CE,CSN) connections PIN
-const byte address[15] = "83878226022003";
+const uint64_t address = 1002502019003;
 boolean smartConfigStart = false;
 
 const char *ssid = "username wifi";
@@ -27,10 +29,10 @@ const char *password = "password wifi";
 boolean stateButton[3];
 boolean stateButton_MQTT[3];
 
-//Topic: product_id/button_id     topic[37] = 7/5/a
-const char *CA_SWR_1 = "740a8d1e-c649-475e-a270-c5d9a44b40a8/774f2306-51ad-4bf1-ba9e-0ddee9bd2375";
-const char *CA_SWR_2 = "740a8d1e-c649-475e-a270-c5d9a44b40a8/5124ba3a-7a45-472b-8468-6f2a041733ac";
-const char *CA_SWR_3 = "740a8d1e-c649-475e-a270-c5d9a44b40a8/a0087ff7-3613-442f-b6c5-0d5d2f0f1a30";
+//Topic: product_id/button_id     topic[37] = 5/9/7
+const char *CA_SWR_1 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/5faf98dd-9aa4-4a02-b0dc-344d5c6304fe";
+const char *CA_SWR_2 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/9554cca1-0133-4682-81f9-acc8bcb40121";
+const char *CA_SWR_3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/7b777605-1ea2-4878-9194-1b1e72edcb98";
 const int smartConfig_LED = 16;
 
 //Config MQTT broker information:
@@ -144,7 +146,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   }
   Serial.println();
 
-  if ((char)topic[37] == '7')
+  if ((char)topic[37] == '5')
     switch ((char)payload[0])
     {
     case '1':
@@ -163,7 +165,7 @@ void callback(char *topic, byte *payload, unsigned int length)
       break;
     }
 
-  if ((char)topic[37] == '5')
+  if ((char)topic[37] == '9')
     switch ((char)payload[0])
     {
     case '1':
@@ -182,7 +184,7 @@ void callback(char *topic, byte *payload, unsigned int length)
       break;
     }
 
-  if ((char)topic[37] == 'a')
+  if ((char)topic[37] == '7')
     switch ((char)payload[0])
     {
     case '1':
