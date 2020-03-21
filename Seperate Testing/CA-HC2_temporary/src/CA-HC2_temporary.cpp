@@ -5,19 +5,21 @@
 #include <PubSubClient.h>
 #include <Ticker.h>
 
-/* In this product - the address (channel) to communicate is define as SWR (convert to decimal) 
-+ 'date make device' + 'product no.' ; In this case, SWR is known as '83 87 82' and add with the date 
-making device for example today is Feb 17th and this is the second product in that day; then the address 
-for this SWR is: const byte address[15] = "83878217022002"  ( 83 87 82 | 17 02 20 | 02 )          
+/* In this product - the address (channel) to communicate is define as <the HC code> (3 degits)
++ <company code> (7 degits) + <product code> (3 degits). So we have the following list product code:      
+CA-SWR: 1002502019001 (13)
+CA-SWR2: 1002502019002 (13)
+CA-SWR3: 1002502019003 (13)
 
-	Product code: da9f8760-13aa-49e2-b881-ffc575ba32f9
+	Product code: 4a0bfbfe-efff-4bae-927c-c8136df70333
 	RF channel (2 button): 83878226022002
-	Button topic: cacf2279-e8e5-4f72-801e-0331952767c0
-                4ee181da-f292-4f67-bfbd-d9f7a41ebe7e  */
+	Button topic: e4859254-ccd6-400f-abec-a5f74292674e
+                6a054789-0a32-4807-a2a7-66fd5a4cf967
+*/
 
 Ticker ticker;
 RF24 radio(2, 15); //nRF24L01 (CE,CSN) connections PIN
-const byte address[6] = "12346";
+const uint64_t address = 1002502019002; //Changeable
 boolean smartConfigStart = false;
 
 const char *ssid = "username wifi";
@@ -26,9 +28,9 @@ const char *password = "password wifi";
 boolean stateButton[2];
 boolean stateButton_MQTT[2];
 
-//Topic: product_id/button_id     topic[37] = c/4
-const char *CA_SWR_1 = "da9f8760-13aa-49e2-b881-ffc575ba32f9/cacf2279-e8e5-4f72-801e-0331952767c0";
-const char *CA_SWR_2 = "da9f8760-13aa-49e2-b881-ffc575ba32f9/4ee181da-f292-4f67-bfbd-d9f7a41ebe7e";
+//Topic: product_id/button_id     topic[37] = e/6
+const char *CA_SWR_1 = "4a0bfbfe-efff-4bae-927c-c8136df70333/e4859254-ccd6-400f-abec-a5f74292674e";
+const char *CA_SWR_2 = "4a0bfbfe-efff-4bae-927c-c8136df70333/6a054789-0a32-4807-a2a7-66fd5a4cf967";
 const int smartConfig_LED = 16;
 
 //Config MQTT broker information:
@@ -141,7 +143,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   }
   Serial.println();
 
-  if ((char)topic[37] == 'c')
+  if ((char)topic[37] == 'e')
     switch ((char)payload[0])
     {
     case '1':
@@ -160,7 +162,7 @@ void callback(char *topic, byte *payload, unsigned int length)
       break;
     }
 
-  if ((char)topic[37] == '4')
+  if ((char)topic[37] == '6')
     switch ((char)payload[0])
     {
     case '1':
