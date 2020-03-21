@@ -34,15 +34,15 @@ boolean stateButton_MQTT_CA_SWR3[3];
 
 boolean stateButton_received_value[3];
 
-//Topic: product_id/button_id             char[37] = b
-const char *CA_SWR = "2a0a6b88-769e-4a63-ac5d-1392a7199e88/be47fa93-15df-44b6-bdba-c821a117cd41";
-//                                        char[37] = c/4
-const char *CA_SWR2_1 = "da9f8760-13aa-49e2-b881-ffc575ba32f9/cacf2279-e8e5-4f72-801e-0331952767c0";
-const char *CA_SWR2_2 = "da9f8760-13aa-49e2-b881-ffc575ba32f9/4ee181da-f292-4f67-bfbd-d9f7a41ebe7e";
-//                                        char[37] = 7/5/a
-const char *CA_SWR3_1 = "740a8d1e-c649-475e-a270-c5d9a44b40a8/774f2306-51ad-4bf1-ba9e-0ddee9bd2375";
-const char *CA_SWR3_2 = "740a8d1e-c649-475e-a270-c5d9a44b40a8/5124ba3a-7a45-472b-8468-6f2a041733ac";
-const char *CA_SWR3_3 = "740a8d1e-c649-475e-a270-c5d9a44b40a8/a0087ff7-3613-442f-b6c5-0d5d2f0f1a30";
+//Topic: product_id/button_id             char[38] = 3
+const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13/7362251b-a856-4ef2-ab9b-33fd27b137a8";
+//                                        char[38] = 4/a
+const char *CA_SWR2_1 = "4a0bfbfe-efff-4bae-927c-c8136df70333/e4859254-ccd6-400f-abec-a5f74292674e";
+const char *CA_SWR2_2 = "4a0bfbfe-efff-4bae-927c-c8136df70333/6a054789-0a32-4807-a2a7-66fd5a4cf967";
+//                                        char[38] = f/5/b
+const char *CA_SWR3_1 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/5faf98dd-9aa4-4a02-b0dc-344d5c6304fe";
+const char *CA_SWR3_2 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/9554cca1-0133-4682-81f9-acc8bcb40121";
+const char *CA_SWR3_3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/7b777605-1ea2-4878-9194-1b1e72edcb98";
 
 const int smartConfig_LED = 16;
 
@@ -161,7 +161,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   Serial.println();
 
   // CA-SWR:
-  if ((char)topic[37] == 'b')
+  if ((char)topic[38] == '3')
     switch ((char)payload[0])
     {
     case '1':
@@ -181,7 +181,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
 
   // CA-SWR2:
-  if ((char)topic[37] == 'c')
+  if ((char)topic[37] == '4')
     switch ((char)payload[0])
     {
     case '1':
@@ -200,7 +200,7 @@ void callback(char *topic, byte *payload, unsigned int length)
       break;
     }
 
-  if ((char)topic[37] == '4')
+  if ((char)topic[37] == 'a')
     switch ((char)payload[0])
     {
     case '1':
@@ -220,7 +220,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
 
   // CA-SWR3:
-  if ((char)topic[37] == '7')
+  if ((char)topic[37] == 'f')
     switch ((char)payload[0])
     {
     case '1':
@@ -258,7 +258,7 @@ void callback(char *topic, byte *payload, unsigned int length)
       break;
     }
 
-  if ((char)topic[37] == 'a')
+  if ((char)topic[37] == 'b')
     switch ((char)payload[0])
     {
     case '1':
@@ -315,15 +315,15 @@ void setup()
 
 void loop()
 {
-  // if (WiFi.status() == WL_CONNECTED)
-  // {
-  //   if (!client.connected())
-  //   {
-  //     reconnect_mqtt();
-  //   }
-  //   else
-  //     client.loop();
-  // }
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    if (!client.connected())
+    {
+      reconnect_mqtt();
+    }
+    else
+      client.loop();
+  }
 
   uint8_t pipeNum;
   radio.openReadingPipe(1, address_CA_SWR);
