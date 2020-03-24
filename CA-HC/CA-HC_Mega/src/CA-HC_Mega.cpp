@@ -100,7 +100,7 @@ void loop()
             radio.read(&stateButton_CA_SWR, sizeof(stateButton_CA_SWR));
             stateButton_MQTT_CA_SWR[0] = stateButton_CA_SWR[0];
             
-            Json_CA_SWR["type"] = "CA-SWR";
+            Json_CA_SWR["type"] = "CA-SWR1";
             Json_CA_SWR["button_data"] = stateButton_MQTT_CA_SWR[0];
             serializeJson(Json_CA_SWR, payload);
             Serial3.print(payload);
@@ -130,7 +130,7 @@ void loop()
             stateButton_MQTT_CA_SWR3[1] = stateButton_CA_SWR3[1];
             stateButton_MQTT_CA_SWR3[2] = stateButton_CA_SWR3[2];
             
-            Json_CA_SWR3["type"] = "CA-SWR2";
+            Json_CA_SWR3["type"] = "CA-SWR3";
             Json_CA_SWR3["button_data_1"] = stateButton_MQTT_CA_SWR3[0];
             Json_CA_SWR3["button_data_2"] = stateButton_MQTT_CA_SWR3[1];
             Json_CA_SWR3["button_data_3"] = stateButton_MQTT_CA_SWR3[2];
