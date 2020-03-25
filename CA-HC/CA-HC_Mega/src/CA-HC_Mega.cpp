@@ -99,7 +99,7 @@ void loop()
             memset(&stateButton_CA_SWR, ' ', sizeof(stateButton_CA_SWR));
             radio.read(&stateButton_CA_SWR, sizeof(stateButton_CA_SWR));
             stateButton_MQTT_CA_SWR[0] = stateButton_CA_SWR[0];
-            
+
             Json_CA_SWR["type"] = "CA-SWR1";
             Json_CA_SWR["button_data"] = stateButton_MQTT_CA_SWR[0];
             serializeJson(Json_CA_SWR, payload);
@@ -113,7 +113,7 @@ void loop()
             radio.read(&stateButton_CA_SWR2, sizeof(stateButton_CA_SWR2));
             stateButton_MQTT_CA_SWR2[0] = stateButton_CA_SWR2[0];
             stateButton_MQTT_CA_SWR2[1] = stateButton_CA_SWR2[1];
-            
+
             Json_CA_SWR2["type"] = "CA-SWR2";
             Json_CA_SWR2["button_data_1"] = stateButton_MQTT_CA_SWR2[0];
             Json_CA_SWR2["button_data_2"] = stateButton_MQTT_CA_SWR2[1];
@@ -129,7 +129,7 @@ void loop()
             stateButton_MQTT_CA_SWR3[0] = stateButton_CA_SWR3[0];
             stateButton_MQTT_CA_SWR3[1] = stateButton_CA_SWR3[1];
             stateButton_MQTT_CA_SWR3[2] = stateButton_CA_SWR3[2];
-            
+
             Json_CA_SWR3["type"] = "CA-SWR3";
             Json_CA_SWR3["button_data_1"] = stateButton_MQTT_CA_SWR3[0];
             Json_CA_SWR3["button_data_2"] = stateButton_MQTT_CA_SWR3[1];
@@ -153,4 +153,25 @@ void loop()
     // serializeJson(JsonDoc, payload);
     // Serial.println(payload);
     // Serial3.print(payload);
+
+    if (Serial3.available())
+    {
+        String Control_from_MQTT = Serial.readString();
+        Serial.println(Control_from_MQTT);
+
+        StaticJsonDocument<1000> JsonDoc_CfM;
+        deserializeJson(JsonDoc_CfM, Control_from_MQTT);
+
+        String type = JsonDoc_CfM["type"];
+        Serial.print("Type received: ");
+        Serial.println(type);
+
+        // radio.stopListening();
+        // radio.openWritingPipe(address_CA_SWR);
+        // radio.write(&stateButton_MQTT_CA_SWR, sizeof(stateButton_MQTT_CA_SWR));
+
+        // radio.stopListening();
+        // radio.openWritingPipe(address_CA_SWR);
+        // radio.write(&stateButton_MQTT_CA_SWR, sizeof(stateButton_MQTT_CA_SWR));
+    }
 }
