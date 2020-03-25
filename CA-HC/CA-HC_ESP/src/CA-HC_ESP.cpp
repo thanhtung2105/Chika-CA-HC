@@ -40,6 +40,10 @@ void longPress();
 void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
 
+boolean stateButton_received_value[3];
+String Control_from_MQTT;
+StaticJsonDocument<1000> JsonDoc_CfM;
+
 void setup()
 {
   Serial.begin(115200);
@@ -100,6 +104,8 @@ void loop()
         deserializeJson(JsonDoc, payload);
 
         String type = JsonDoc["type"];
+        Serial.print("Type received: ");
+        Serial.println(type);
         // float temp = JsonDoc["temperature"];
         // float humi = JsonDoc["humidity"];
 
@@ -114,7 +120,7 @@ void loop()
         // client.publish(HCTest, payload_char);
         if (type.charAt(6)=='1')
         {
-          boolean btn_1 = JsonDoc["button_data_1"];
+          boolean btn_1 = JsonDoc["button_data"];
           if (btn_1)
           {
             client.publish(CA_SWR, "1", true);
@@ -229,35 +235,25 @@ void reconnect()
 void callback(char *topic, byte *payload, unsigned int length)
 {
   //Topic list test is the value of variables: CA_SWR | CA_SWR2_1 ; CA_SWR2_2 | CA_SWR3_1 ; CA_SWR3_2 ; CA_SWR3_3
-  Serial.print("Topic [");
-  Serial.print(topic);
-  Serial.print("]: ");
   //Print message of button ID:
-  for (unsigned int i = 0; i < length; i++)
-  {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
 
   // CA-SWR:
   if ((char)topic[38] == '3')
     switch ((char)payload[0])
     {
     case '1':
-      // stateButton_MQTT_CA_SWR[0] = 1;
-      // Serial.println("CA_SWR - ON");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR);
-      // radio.write(&stateButton_MQTT_CA_SWR, sizeof(stateButton_MQTT_CA_SWR));
-      Serial.println("MQTT: CA-SWR callback - ON !");
+      stateButton_received_value[0] = true;
+      JsonDoc_CfM["type"] = "CA-SWR1";
+      JsonDoc_CfM["button_data"] = stateButton_received_value[0];
+      serializeJson(JsonDoc_CfM, Control_from_MQTT);
+      Serial.print(Control_from_MQTT);
       break;
     case '0':
-      // stateButton_MQTT_CA_SWR[0] = 0;
-      // Serial.println("CA_SWR - OFF");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR);
-      // radio.write(&stateButton_MQTT_CA_SWR, sizeof(stateButton_MQTT_CA_SWR));
-      Serial.println("MQTT: CA-SWR callback - OFF !");
+      stateButton_received_value[0] = false;
+      JsonDoc_CfM["type"] = "CA-SWR1";
+      JsonDoc_CfM["button_data"] = stateButton_received_value[0];
+      serializeJson(JsonDoc_CfM, Control_from_MQTT);
+      Serial.print(Control_from_MQTT);
       break;
     }
 
