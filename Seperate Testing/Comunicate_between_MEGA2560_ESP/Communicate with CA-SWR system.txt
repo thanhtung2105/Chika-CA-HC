@@ -1,0 +1,8 @@
+CA-SWR: 2b92934f-7a41-4ce1-944d-d33ed6d97e13
+{"type":"2b92934f-7a41-4ce1-944d-d33ed6d97e13","button_1":true,"button_2":"","button_3":""}
+
+CA-SWR2: 4a0bfbfe-efff-4bae-927c-c8136df70333
+{"type":"4a0bfbfe-efff-4bae-927c-c8136df70333","button_1":false,"button_2":true,"button_3":""}
+
+CA-SWR3: ebb2464e-ba53-4f22-aa61-c76f24d3343d
+{"type":"ebb2464e-ba53-4f22-aa61-c76f24d3343d","button_1":false,"button_2":true,"button_3":false}
