@@ -70,46 +70,6 @@ void setup()
 
 void loop()
 {
-  /*
-  // if (Serial.available())
-  // {
-  //   String payload = Serial.readString();
-  //   Serial.println(payload);
-  // }
-
-  String Json_CA_SWR, Json_CA_SWR2, Json_CA_SWR3;
-  StaticJsonDocument<200> CA_SWR;
-  StaticJsonDocument<200> CA_SWR2;
-  StaticJsonDocument<200> CA_SWR3;
-
-  CA_SWR["type"] = "2b92934f-7a41-4ce1-944d-d33ed6d97e13";
-  CA_SWR["button_1"] = true;
-  CA_SWR["button_2"] = "";
-  CA_SWR["button_3"] = "";
-  serializeJson(CA_SWR, Json_CA_SWR);
-  Serial.print(Json_CA_SWR);
-  Serial.flush();
-  delay(2000);
-
-  CA_SWR2["type"] = "4a0bfbfe-efff-4bae-927c-c8136df70333";
-  CA_SWR2["button_1"] = false;
-  CA_SWR2["button_2"] = true;
-  CA_SWR2["button_3"] = "";
-  serializeJson(CA_SWR2, Json_CA_SWR2);
-  Serial.print(Json_CA_SWR2);
-  Serial.flush();
-  delay(2000);
-
-  CA_SWR3["type"] = "ebb2464e-ba53-4f22-aa61-c76f24d3343d";
-  CA_SWR3["button_1"] = false;
-  CA_SWR3["button_2"] = true;
-  CA_SWR3["button_3"] = false;
-  serializeJson(CA_SWR3, Json_CA_SWR3);
-  Serial.print(Json_CA_SWR3);
-  Serial.flush();
-  delay(2000);
-  */
-
   //longPress();
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -118,6 +78,31 @@ void loop()
     if (client.connected())
     {
       client.loop();
+      //Send state of device when having anything changes from product:
+      if (Serial.available())
+      {
+        String payload_MEGA = Serial.readString();
+        // Serial.println(payload_MEGA);
+
+        StaticJsonDocument<200> JsonDoc;
+        deserializeJson(JsonDoc, payload_MEGA);
+        char payload_toChar[200];
+        payload_MEGA.toCharArray(payload_toChar, payload_MEGA.length() + 1);
+
+        String type = JsonDoc["type"];
+        if (type == "CA-SWR")
+        {
+          client.publish(CA_SWR, payload_toChar);
+        }
+        else if (type == "CA-SWR2")
+        {
+          client.publish(CA_SWR2, payload_toChar);
+        }
+        else if (type == "CA-SWR3")
+        {
+          client.publish(CA_SWR3, payload_toChar);
+        }
+      }
     }
     else
     {
