@@ -1,13 +1,23 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Ticker.h>
-#include <ArduinoJson.h>
+#include <DHT.h>
+#include <Adafruit_Sensor.h>
 
+/* This product (CA-HC) will send data with sampling cycle is 60s */
+
+#define DHTPIN 0
+#define DHTTYPE DHT22
 #define ledR 16
 #define ledB 5
 #define btn_config 4
 
+DHT SS00(DHTPIN, DHTTYPE);
+uint32_t timer_sendTempHumi = 0;
+
+//Time for SmartConfig:
 uint32_t timer = 0;
 uint16_t longPressTime = 6000;
 
@@ -18,6 +28,8 @@ const int mqtt_port = 2502;
 const char *mqtt_user = "chika";
 const char *mqtt_pass = "2502";
 
+//List topic of communication with products:
+const char *CA_SS00 = "f7a3bde5-5a85-470f-9577-cdbf3be121d4/temphumi";
 const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13/stateDevice";
 const char *CA_SWR2 = "4a0bfbfe-efff-4bae-927c-c8136df70333/stateDevice";
 const char *CA_SWR3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/stateDevice";
@@ -34,12 +46,10 @@ void longPress();
 void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
 
-boolean stateButton_received_value[3];
-String Control_from_MQTT;
-
 void setup()
 {
   Serial.begin(115200);
+  SS00.begin();
 
   WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
@@ -49,7 +59,6 @@ void setup()
   pinMode(btn_config, INPUT);
 
   ticker.attach(1, tick2);
-
   uint16_t i = 0;
   while (!WiFi.isConnected())
   {
@@ -58,7 +67,6 @@ void setup()
     if (i >= 100)
       break;
   }
-
   if (!WiFi.isConnected())
   {
     startSmartConfig();
@@ -67,10 +75,6 @@ void setup()
   {
     ticker.detach();
     digitalWrite(ledR, LOW);
-    Serial.println("WIFI CONNECTED");
-    Serial.println(WiFi.SSID());
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
   }
 
   client.setServer(mqtt_server, mqtt_port);
@@ -79,6 +83,7 @@ void setup()
 
 void loop()
 {
+  delay(10);
   //longPress();
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -87,21 +92,53 @@ void loop()
     if (client.connected())
     {
       client.loop();
-      // do something here
+
+      //First - Check information from CA-SS00:
+      timer_sendTempHumi++;
+      if (timer_sendTempHumi > 6000)     // with timer = 100 equal to 1s
+      {
+        timer_sendTempHumi = 0;
+        float h = SS00.readHumidity();
+        float t = SS00.readTemperature();
+
+        while (isnan(h) || isnan(t))
+        {
+          h = SS00.readHumidity();
+          t = SS00.readTemperature();
+        }
+
+        // Serial.print("Humidity: ");
+        // Serial.print(h);
+        // Serial.print(" %\n");
+        // Serial.print("Temperature: ");
+        // Serial.print(t);
+        // Serial.println(" oC\n");
+
+        String sendTempHumi;
+        char payload_sendTempHumi[300];
+        StaticJsonDocument<300> JsonCA_SS00;
+
+        JsonCA_SS00["type"] = CA_SS00;
+        JsonCA_SS00["temperature"] = t;
+        JsonCA_SS00["humidity"] = h;
+        serializeJson(JsonCA_SS00, sendTempHumi);
+
+        sendTempHumi.toCharArray(payload_sendTempHumi, sendTempHumi.length() + 1);
+        client.publish(CA_SS00, payload_sendTempHumi, true);
+      }
+
+      //Send state of device when having anything changes from product:
       if (Serial.available())
       {
-        String payload = Serial.readString();
-        Serial.println(payload);
+        String payload_MEGA = Serial.readString();
+        // Serial.println(payload_MEGA);
 
         StaticJsonDocument<200> JsonDoc;
-        deserializeJson(JsonDoc, payload);
+        deserializeJson(JsonDoc, payload_MEGA);
         char payload_toChar[200];
-        payload.toCharArray(payload_toChar, payload.length() + 1);
+        payload_MEGA.toCharArray(payload_toChar, payload_MEGA.length() + 1);
 
         String type = JsonDoc["type"];
-        Serial.print("Type received: ");
-        Serial.println(type);
-
         if (type == "CA-SWR")
         {
           client.publish(CA_SWR, payload_toChar);
@@ -123,7 +160,6 @@ void loop()
   }
   else
   {
-    Serial.println("WiFi Connected Fail");
     WiFi.reconnect();
     digitalWrite(ledB, LOW);
     boolean state = digitalRead(ledR);
@@ -135,23 +171,19 @@ void reconnect()
 {
   while (!client.connected())
   {
-    Serial.print("Attempting MQTT connection...");
     String clientId = "CA-HC_combination - ";
     clientId += String(random(0xffff), HEX);
-    Serial.println(clientId);
 
     if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass))
     {
       Serial.println("Connected");
+      Serial.flush();
       client.subscribe(CA_SWR);
       client.subscribe(CA_SWR2);
       client.subscribe(CA_SWR3);
     }
     else
     {
-      Serial.print("Failed, rc=");
-      Serial.print(client.state());
-      Serial.println("Try again in 1 second");
       delay(1000);
     }
   }
@@ -159,135 +191,11 @@ void reconnect()
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
-  //Topic list test is the value of variables: CA_SWR | CA_SWR2_1 ; CA_SWR2_2 | CA_SWR3_1 ; CA_SWR3_2 ; CA_SWR3_3
-  //Print message of button ID:
-
-  // CA-SWR:
-  if ((char)topic[38] == '3')
-    switch ((char)payload[0])
+    for (unsigned int i = 0; i < length; i++)
     {
-    case '1':
-      stateButton_received_value[0] = true;
-      JsonDoc_CfM["type"] = "CA-SWR1";
-      JsonDoc_CfM["button_data"] = stateButton_received_value[0];
-      serializeJson(JsonDoc_CfM, Control_from_MQTT);
-      Serial.print(Control_from_MQTT);
-      break;
-    case '0':
-      stateButton_received_value[0] = false;
-      JsonDoc_CfM["type"] = "CA-SWR1";
-      JsonDoc_CfM["button_data"] = stateButton_received_value[0];
-      serializeJson(JsonDoc_CfM, Control_from_MQTT);
-      Serial.print(Control_from_MQTT);
-      break;
+      Serial.print((char)payload[i]);
     }
-
-  // CA-SWR2:
-  if ((char)topic[38] == '4')
-    switch ((char)payload[0])
-    {
-    case '1':
-      // stateButton_MQTT_CA_SWR2[0] = 1;
-      // Serial.println("CA_SWR2_1 - ON");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR2);
-      // radio.write(&stateButton_MQTT_CA_SWR2, sizeof(stateButton_MQTT_CA_SWR2));
-      Serial.println("MQTT: CA-SWR2_1 callback - ON !");
-      break;
-    case '0':
-      // stateButton_MQTT_CA_SWR2[0] = 0;
-      // Serial.println("CA_SWR2_1 - OFF");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR2);
-      // radio.write(&stateButton_MQTT_CA_SWR2, sizeof(stateButton_MQTT_CA_SWR2));
-      Serial.println("MQTT: CA-SWR2_1 callback - OFF !");
-      break;
-    }
-
-  if ((char)topic[38] == 'a')
-    switch ((char)payload[0])
-    {
-    case '1':
-      // stateButton_MQTT_CA_SWR2[1] = 1;
-      // Serial.println("CA_SWR2_2 - ON");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR2);
-      // radio.write(&stateButton_MQTT_CA_SWR2, sizeof(stateButton_MQTT_CA_SWR2));
-      Serial.println("MQTT: CA-SWR2_2 callback - ON !");
-      break;
-    case '0':
-      // stateButton_MQTT_CA_SWR2[1] = 0;
-      // Serial.println("CA_SWR2_2 - OFF");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR2);
-      // radio.write(&stateButton_MQTT_CA_SWR2, sizeof(stateButton_MQTT_CA_SWR2));
-      Serial.println("MQTT: CA-SWR2_2 callback - OFF !");
-      break;
-    }
-
-  // CA-SWR3:
-  if ((char)topic[38] == 'f')
-    switch ((char)payload[0])
-    {
-    case '1':
-      // stateButton_MQTT_CA_SWR3[0] = 1;
-      // Serial.println("CA_SWR3_1 - ON");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR3);
-      // radio.write(&stateButton_MQTT_CA_SWR3, sizeof(stateButton_MQTT_CA_SWR3));
-      Serial.println("MQTT: CA-SWR3_1 callback - ON !");
-      break;
-    case '0':
-      // stateButton_MQTT_CA_SWR3[0] = 0;
-      // Serial.println("CA_SWR3_1 - OFF");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR3);
-      // radio.write(&stateButton_MQTT_CA_SWR3, sizeof(stateButton_MQTT_CA_SWR3));
-      Serial.println("MQTT: CA-SWR3_1 callback - OFF !");
-      break;
-    }
-
-  if ((char)topic[38] == '5')
-    switch ((char)payload[0])
-    {
-    case '1':
-      // stateButton_MQTT_CA_SWR3[1] = 1;
-      // Serial.println("CA_SWR3_2 - ON");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR3);
-      // radio.write(&stateButton_MQTT_CA_SWR3, sizeof(stateButton_MQTT_CA_SWR3));
-      Serial.println("MQTT: CA-SWR3_2 callback - ON !");
-      break;
-    case '0':
-      // stateButton_MQTT_CA_SWR3[1] = 0;
-      // Serial.println("CA_SWR3_2 - OFF");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR3);
-      // radio.write(&stateButton_MQTT_CA_SWR3, sizeof(stateButton_MQTT_CA_SWR3));
-      Serial.println("MQTT: CA-SWR3_2 callback - OFF !");
-      break;
-    }
-
-  if ((char)topic[38] == 'b')
-    switch ((char)payload[0])
-    {
-    case '1':
-      // stateButton_MQTT_CA_SWR3[2] = 1;
-      // Serial.println("CA_SWR3_3 - ON");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR3);
-      // radio.write(&stateButton_MQTT_CA_SWR3, sizeof(stateButton_MQTT_CA_SWR3));
-      Serial.println("MQTT: CA-SWR3_3 callback - ON !");
-      break;
-    case '0':
-      // stateButton_MQTT_CA_SWR3[2] = 0;
-      // Serial.println("CA_SWR3_3 - OFF");
-      // radio.stopListening();
-      // radio.openWritingPipe(address_CA_SWR3);
-      // radio.write(&stateButton_MQTT_CA_SWR3, sizeof(stateButton_MQTT_CA_SWR3));
-      Serial.println("MQTT: CA-SWR3_3 callback - OFF !");
-      break;
-    }
+    Serial.flush();
 }
 
 void tick()
@@ -325,7 +233,6 @@ boolean startSmartConfig()
     delay(500);
     if (t > 100)
     {
-      Serial.println("Smart Config fail");
       ticker.attach(0.5, tick);
       delay(3000);
       exitSmartConfig();
@@ -353,7 +260,6 @@ void longPress()
 
     if (millis() - timer > longPressTime)
     {
-      Serial.println("SmartConfig Start");
       digitalWrite(ledB, LOW);
       startSmartConfig();
     }
