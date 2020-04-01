@@ -18,15 +18,9 @@ const int mqtt_port = 2502;
 const char *mqtt_user = "chika";
 const char *mqtt_pass = "2502";
 
-//Topic: product_id/button_id             char[38] = 3
-const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13/7362251b-a856-4ef2-ab9b-33fd27b137a8";
-//                                        char[38] = 4/a
-const char *CA_SWR2_1 = "4a0bfbfe-efff-4bae-927c-c8136df70333/e4859254-ccd6-400f-abec-a5f74292674e";
-const char *CA_SWR2_2 = "4a0bfbfe-efff-4bae-927c-c8136df70333/6a054789-0a32-4807-a2a7-66fd5a4cf967";
-//                                        char[38] = f/5/b
-const char *CA_SWR3_1 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/5faf98dd-9aa4-4a02-b0dc-344d5c6304fe";
-const char *CA_SWR3_2 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/9554cca1-0133-4682-81f9-acc8bcb40121";
-const char *CA_SWR3_3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/7b777605-1ea2-4878-9194-1b1e72edcb98";
+const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13/stateDevice";
+const char *CA_SWR2 = "4a0bfbfe-efff-4bae-927c-c8136df70333/stateDevice";
+const char *CA_SWR3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/stateDevice";
 
 Ticker ticker;
 WiFiClient esp;
@@ -42,38 +36,37 @@ void reconnect();
 
 boolean stateButton_received_value[3];
 String Control_from_MQTT;
-StaticJsonDocument<1000> JsonDoc_CfM;
 
 void setup()
 {
   Serial.begin(115200);
 
-  WiFi.setAutoConnect(true);   // auto connect when start
-  WiFi.setAutoReconnect(true); // auto reconnect the old WiFi when leaving internet
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
 
-  pinMode(ledR, OUTPUT);      // led red set on
-  pinMode(ledB, OUTPUT);      // led blue set on
-  pinMode(btn_config, INPUT); // btn_config is ready
+  pinMode(ledR, OUTPUT);
+  pinMode(ledB, OUTPUT);
+  pinMode(btn_config, INPUT);
 
-  ticker.attach(1, tick2); // initial led show up
+  ticker.attach(1, tick2);
 
   uint16_t i = 0;
-  while (!WiFi.isConnected()) // check WiFi is connected
+  while (!WiFi.isConnected())
   {
     i++;
     delay(100);
-    if (i >= 100) // timeout and break while loop
+    if (i >= 100)
       break;
   }
 
-  if (!WiFi.isConnected()) // still not connected
+  if (!WiFi.isConnected())
   {
-    startSmartConfig(); // start Smartconfig
+    startSmartConfig();
   }
   else
   {
-    ticker.detach();         // shutdown ticker
-    digitalWrite(ledR, LOW); // show led
+    ticker.detach();
+    digitalWrite(ledR, LOW);
     Serial.println("WIFI CONNECTED");
     Serial.println(WiFi.SSID());
     Serial.print("IP: ");
@@ -100,92 +93,27 @@ void loop()
         String payload = Serial.readString();
         Serial.println(payload);
 
-        StaticJsonDocument<1000> JsonDoc;
+        StaticJsonDocument<200> JsonDoc;
         deserializeJson(JsonDoc, payload);
+        char payload_toChar[200];
+        payload.toCharArray(payload_toChar, payload.length() + 1);
 
         String type = JsonDoc["type"];
         Serial.print("Type received: ");
         Serial.println(type);
-        // float temp = JsonDoc["temperature"];
-        // float humi = JsonDoc["humidity"];
 
-        // Serial.print(F("Humidity: "));
-        // Serial.print(humi);
-        // Serial.print(F("%  Temperature: "));
-        // Serial.print(temp);
-        // Serial.println(F("°C "));
-
-        // char payload_char[1000];
-        // payload.toCharArray(payload_char, payload.length() + 1);
-        // client.publish(HCTest, payload_char);
-        if (type.charAt(6)=='1')
+        if (type == "CA-SWR")
         {
-          boolean btn_1 = JsonDoc["button_data"];
-          if (btn_1)
-          {
-            client.publish(CA_SWR, "1", true);
-          }
-          else
-          {
-            client.publish(CA_SWR, "0", true);
-          }
+          client.publish(CA_SWR, payload_toChar);
         }
-        else if (type.charAt(6)=='2')
+        else if (type == "CA-SWR2")
         {
-          boolean btn_1 = JsonDoc["button_data_1"];
-          boolean btn_2 = JsonDoc["button_data_2"];
-
-          if (btn_1)
-          {
-            client.publish(CA_SWR2_1, "1", true);
-          }
-          else
-          {
-            client.publish(CA_SWR2_1, "0", true);
-          }
-
-          if (btn_2)
-          {
-            client.publish(CA_SWR2_2, "1", true);
-          }
-          else
-          {
-            client.publish(CA_SWR2_2, "0", true);
-          }
+          client.publish(CA_SWR2, payload_toChar);
         }
-        else
+        else if (type == "CA-SWR3")
         {
-          boolean btn_1 = JsonDoc["button_data_1"];
-          boolean btn_2 = JsonDoc["button_data_2"];
-          boolean btn_3 = JsonDoc["button_data_3"];
-
-          if (btn_1)
-          {
-            client.publish(CA_SWR3_1, "1", true);
-          }
-          else
-          {
-            client.publish(CA_SWR3_1, "0", true);
-          }
-
-          if (btn_2)
-          {
-            client.publish(CA_SWR3_2, "1", true);
-          }
-          else
-          {
-            client.publish(CA_SWR3_2, "0", true);
-          }
-
-          if (btn_3)
-          {
-            client.publish(CA_SWR3_3, "1", true);
-          }
-          else
-          {
-            client.publish(CA_SWR3_3, "0", true);
-          }
-        }  
+          client.publish(CA_SWR3, payload_toChar);
+        }
       }
     }
     else
@@ -216,11 +144,8 @@ void reconnect()
     {
       Serial.println("Connected");
       client.subscribe(CA_SWR);
-      client.subscribe(CA_SWR2_1);
-      client.subscribe(CA_SWR2_2);
-      client.subscribe(CA_SWR3_1);
-      client.subscribe(CA_SWR3_2);
-      client.subscribe(CA_SWR3_3);
+      client.subscribe(CA_SWR2);
+      client.subscribe(CA_SWR3);
     }
     else
     {
