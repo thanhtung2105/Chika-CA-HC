@@ -1,3 +1,11 @@
+/* This source code for CA-HC and it has included the functions for controlling list of following products:
+        - CA-SWR: {"id":"2b92934f-7a41-4ce1-944d-d33ed6d97e13", "type":"1 button", "RF_channel": 1002502019001}
+        - CA-SWR2: {"id":"4a0bfbfe-efff-4bae-927c-c8136df70333", "type":"2 buttons", "RF_channel": 1002502019002}
+        - CA-SWR3: {"id":"ebb2464e-ba53-4f22-aa61-c76f24d3343d", "type":"3 buttons", "RF_channel": 1002502019003}
+        - CA-SS00: {"id":"f7a3bde5-5a85-470f-9577-cdbf3be121d4", "type":"CA-SS00", "RF_channel": "none"}
+        - CA-SS02: {"id":"9d860c55-7899-465b-9fb3-195ae0c0959a", "type":"CA-SS02", "RF_channel": 1002502019004}
+ */
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
@@ -29,10 +37,12 @@ const char *mqtt_user = "chika";
 const char *mqtt_pass = "2502";
 
 //List topic of communication with products:
-const char *CA_SS00 = "f7a3bde5-5a85-470f-9577-cdbf3be121d4/temphumi";
-const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13/stateDevice";
-const char *CA_SWR2 = "4a0bfbfe-efff-4bae-927c-c8136df70333/stateDevice";
-const char *CA_SWR3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d/stateDevice";
+const char *CA_SS00 = "f7a3bde5-5a85-470f-9577-cdbf3be121d4";
+const char *CA_SS02 = "9d860c55-7899-465b-9fb3-195ae0c0959a";
+
+const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13";
+const char *CA_SWR2 = "4a0bfbfe-efff-4bae-927c-c8136df70333";
+const char *CA_SWR3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d";
 
 Ticker ticker;
 WiFiClient esp;
@@ -83,7 +93,7 @@ void setup()
 
 void loop()
 {
-  delay(10);
+  delay(100);
   //longPress();
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -92,10 +102,10 @@ void loop()
     if (client.connected())
     {
       client.loop();
-
+  
       //First - Check information from CA-SS00:
       timer_sendTempHumi++;
-      if (timer_sendTempHumi > 6000)     // with timer = 100 equal to 1s
+      if (timer_sendTempHumi > 30)     // with timer = 100 equal to 1s
       {
         timer_sendTempHumi = 0;
         float h = SS00.readHumidity();
@@ -107,12 +117,12 @@ void loop()
           t = SS00.readTemperature();
         }
 
-        // Serial.print("Humidity: ");
-        // Serial.print(h);
-        // Serial.print(" %\n");
-        // Serial.print("Temperature: ");
-        // Serial.print(t);
-        // Serial.println(" oC\n");
+        Serial.print("Humidity: ");
+        Serial.print(h);
+        Serial.print(" %\n");
+        Serial.print("Temperature: ");
+        Serial.print(t);
+        Serial.println(" oC\n");
 
         String sendTempHumi;
         char payload_sendTempHumi[300];
@@ -126,7 +136,7 @@ void loop()
         sendTempHumi.toCharArray(payload_sendTempHumi, sendTempHumi.length() + 1);
         client.publish(CA_SS00, payload_sendTempHumi, true);
       }
-
+  
       //Send state of device when having anything changes from product:
       if (Serial.available())
       {
@@ -150,6 +160,10 @@ void loop()
         else if (type == "CA-SWR3")
         {
           client.publish(CA_SWR3, payload_toChar);
+        }
+        else if (type == "CA-SS02")
+        {
+          client.publish(CA_SS02, payload_toChar);
         }
       }
     }
@@ -176,8 +190,9 @@ void reconnect()
 
     if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass))
     {
-      Serial.println("Connected");
+      Serial.println("Connected !");
       Serial.flush();
+      client.subscribe(CA_SS02);
       client.subscribe(CA_SWR);
       client.subscribe(CA_SWR2);
       client.subscribe(CA_SWR3);
