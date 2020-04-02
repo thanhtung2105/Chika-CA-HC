@@ -28,7 +28,7 @@ const char *mqtt_user = "chika";
 const char *mqtt_pass = "2502";
 
 //Topic: HC_id/temphumi
-const char *CA_SS00 = "f7a3bde5-5a85-470f-9577-cdbf3be121d4/temphumi";
+const char *CA_SS00 = "f7a3bde5-5a85-470f-9577-cdbf3be121d4";
 
 Ticker ticker;
 WiFiClient esp;
@@ -86,7 +86,7 @@ void loop()
       client.loop();
 
       timer_sendTempHumi++;
-      if (timer_sendTempHumi > 600)     // with timer = 10 equal to 1s
+      if (timer_sendTempHumi > 60)     // with timer = 10 equal to 1s
       {
         timer_sendTempHumi = 0;
         float h = SS00.readHumidity();
@@ -98,12 +98,12 @@ void loop()
           t = SS00.readTemperature();
         }
 
-        // Serial.print("Humidity: ");
-        // Serial.print(h);
-        // Serial.print(" %\n");
-        // Serial.print("Temperature: ");
-        // Serial.print(t);
-        // Serial.println(" oC\n");
+        Serial.print("Humidity: ");
+        Serial.print(h);
+        Serial.print(" %\n");
+        Serial.print("Temperature: ");
+        Serial.print(t);
+        Serial.println(" oC\n");
 
         String sendTempHumi;
         char payload_sendTempHumi[500];
