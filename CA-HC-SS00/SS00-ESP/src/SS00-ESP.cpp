@@ -86,7 +86,7 @@ void loop()
       client.loop();
 
       timer_sendTempHumi++;
-      if (timer_sendTempHumi > 60)     // with timer = 10 equal to 1s
+      if (timer_sendTempHumi > 30) // with timer = 10 equal to 1s
       {
         timer_sendTempHumi = 0;
         float h = SS00.readHumidity();
@@ -96,6 +96,7 @@ void loop()
         {
           h = SS00.readHumidity();
           t = SS00.readTemperature();
+          delay(5);
         }
 
         Serial.print("Humidity: ");
