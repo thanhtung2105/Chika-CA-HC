@@ -13,6 +13,7 @@
 #include <Ticker.h>
 #include <DHT.h>
 #include <Adafruit_Sensor.h>
+#include <SPI.h>
 
 /* This product (CA-HC) will send data with sampling cycle is 60s */
 
@@ -93,8 +94,8 @@ void setup()
 
 void loop()
 {
-  delay(100);
   //longPress();
+  delay(100);
   if (WiFi.status() == WL_CONNECTED)
   {
     digitalWrite(ledB, HIGH);
@@ -102,20 +103,21 @@ void loop()
     if (client.connected())
     {
       client.loop();
-  
+
       //First - Check information from CA-SS00:
       timer_sendTempHumi++;
-      if (timer_sendTempHumi > 30)     // with timer = 100 equal to 1s
-      {
+       if (timer_sendTempHumi > 30)     // with timer = 100 equal to 1s
+       {
         timer_sendTempHumi = 0;
         float h = SS00.readHumidity();
         float t = SS00.readTemperature();
 
-        while (isnan(h) || isnan(t))
-        {
-          h = SS00.readHumidity();
-          t = SS00.readTemperature();
-        }
+        // while (isnan(h) || isnan(t))
+        // {
+        //   h = SS00.readHumidity();
+        //   t = SS00.readTemperature();
+        //   delay(5);
+        // }
 
         Serial.print("Humidity: ");
         Serial.print(h);
@@ -125,8 +127,8 @@ void loop()
         Serial.println(" oC\n");
 
         String sendTempHumi;
-        char payload_sendTempHumi[300];
-        StaticJsonDocument<300> JsonCA_SS00;
+        char payload_sendTempHumi[500];
+        StaticJsonDocument<500> JsonCA_SS00;
 
         JsonCA_SS00["type"] = CA_SS00;
         JsonCA_SS00["temperature"] = t;
@@ -136,7 +138,7 @@ void loop()
         sendTempHumi.toCharArray(payload_sendTempHumi, sendTempHumi.length() + 1);
         client.publish(CA_SS00, payload_sendTempHumi, true);
       }
-  
+      
       //Send state of device when having anything changes from product:
       if (Serial.available())
       {
