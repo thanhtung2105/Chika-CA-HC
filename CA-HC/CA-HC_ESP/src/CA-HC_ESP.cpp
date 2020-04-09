@@ -95,7 +95,7 @@ void setup()
 void loop()
 {
   //longPress();
-  delay(100);
+  delay(10);
   if (WiFi.status() == WL_CONNECTED)
   {
     digitalWrite(ledB, HIGH);
@@ -106,25 +106,25 @@ void loop()
 
       //First - Check information from CA-SS00:
       timer_sendTempHumi++;
-       if (timer_sendTempHumi > 30)     // with timer = 100 equal to 1s
+       if (timer_sendTempHumi > 3000)     // with timer = 100 equal to 1s
        {
         timer_sendTempHumi = 0;
         float h = SS00.readHumidity();
         float t = SS00.readTemperature();
 
-        // while (isnan(h) || isnan(t))
-        // {
-        //   h = SS00.readHumidity();
-        //   t = SS00.readTemperature();
-        //   delay(5);
-        // }
+        while (isnan(h) || isnan(t))
+        {
+          h = SS00.readHumidity();
+          t = SS00.readTemperature();
+          delay(5);
+        }
 
-        Serial.print("Humidity: ");
-        Serial.print(h);
-        Serial.print(" %\n");
-        Serial.print("Temperature: ");
-        Serial.print(t);
-        Serial.println(" oC\n");
+        // Serial.print("Humidity: ");
+        // Serial.print(h);
+        // Serial.print(" %\n");
+        // Serial.print("Temperature: ");
+        // Serial.print(t);
+        // Serial.println(" oC\n");
 
         String sendTempHumi;
         char payload_sendTempHumi[500];
