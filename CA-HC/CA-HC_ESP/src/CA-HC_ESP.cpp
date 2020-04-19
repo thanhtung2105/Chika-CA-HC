@@ -5,49 +5,47 @@
         - CA-SS00: {"id":"f7a3bde5-5a85-470f-9577-cdbf3be121d4", "type":"CA-SS00", "RF_channel": "none"}
         - CA-SS02: {"id":"9d860c55-7899-465b-9fb3-195ae0c0959a", "type":"CA-SS02", "RF_channel": 1002502019004}
  */
-
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Ticker.h>
-#include <DHT.h>
-#include <Adafruit_Sensor.h>
+#include <ArduinoJson.h>
 #include <SPI.h>
+#include <Wire.h>
+#include <DHT.h>
 
-/* This product (CA-HC) will send data with sampling cycle is 60s */
-
-#define DHTPIN 0
-#define DHTTYPE DHT22
 #define ledR 16
 #define ledB 5
 #define btn_config 4
+#define DHT_pin 0
+#define DHT_type DHT22
 
-DHT SS00(DHTPIN, DHTTYPE);
-uint32_t timer_sendTempHumi = 0;
-
-//Time for SmartConfig:
-uint32_t timer = 0;
+uint32_t timer_smartConfig = 0;
+uint16_t timer_sendTempHumi = 0 ;
 uint16_t longPressTime = 6000;
 
 boolean buttonActive = false;
+
+char payload_char[500];
 
 const char *mqtt_server = "chika.gq";
 const int mqtt_port = 2502;
 const char *mqtt_user = "chika";
 const char *mqtt_pass = "2502";
 
-//List topic of communication with products:
+const char *HomeCenter = "f7a3bde5-5a85-470f-9577-cdbf3be121d4";
 const char *CA_SS00 = "f7a3bde5-5a85-470f-9577-cdbf3be121d4";
-const char *CA_SS02 = "9d860c55-7899-465b-9fb3-195ae0c0959a";
-
 const char *CA_SWR = "2b92934f-7a41-4ce1-944d-d33ed6d97e13";
 const char *CA_SWR2 = "4a0bfbfe-efff-4bae-927c-c8136df70333";
 const char *CA_SWR3 = "ebb2464e-ba53-4f22-aa61-c76f24d3343d";
+const char *CASS02 = "9d860c55-7899-465b-9fb3-195ae0c0959a";
+const char *CASS03 = "1dd591c2-9080-4dcc-9c14-d9ecf8561248";
+const char *CASS04 = "d5ae3121-fb7b-4198-bbb5-a6fc67566452";
 
 Ticker ticker;
 WiFiClient esp;
 PubSubClient client(esp);
+DHT SS00(DHT_pin,DHT_type);
 
 void tick();
 void tick2();
@@ -60,32 +58,37 @@ void reconnect();
 void setup()
 {
   Serial.begin(115200);
-  SS00.begin();
 
-  WiFi.setAutoConnect(true);
-  WiFi.setAutoReconnect(true);
+  WiFi.setAutoConnect(true);   // auto connect when start
+  WiFi.setAutoReconnect(true); // auto reconnect the old WiFi when leaving internet
 
-  pinMode(ledR, OUTPUT);
-  pinMode(ledB, OUTPUT);
-  pinMode(btn_config, INPUT);
+  pinMode(ledR, OUTPUT);      // led red set on
+  pinMode(ledB, OUTPUT);      // led blue set on
+  pinMode(btn_config, INPUT); // btn_config is ready
 
-  ticker.attach(1, tick2);
+  ticker.attach(1, tick2); // initial led show up
+
   uint16_t i = 0;
-  while (!WiFi.isConnected())
+  while (!WiFi.isConnected()) // check WiFi is connected
   {
     i++;
     delay(100);
-    if (i >= 100)
+    if (i >= 100) // timeout and break while loop
       break;
   }
-  if (!WiFi.isConnected())
+
+  if (!WiFi.isConnected()) // still not connected
   {
-    startSmartConfig();
+    startSmartConfig(); // start Smartconfig
   }
   else
   {
-    ticker.detach();
-    digitalWrite(ledR, LOW);
+    ticker.detach();         // shutdown ticker
+    digitalWrite(ledR, LOW); // show led
+    Serial.println("WIFI CONNECTED");
+    Serial.println(WiFi.SSID());
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
   }
 
   client.setServer(mqtt_server, mqtt_port);
@@ -95,7 +98,6 @@ void setup()
 void loop()
 {
   //longPress();
-  delay(10);
   if (WiFi.status() == WL_CONNECTED)
   {
     digitalWrite(ledB, HIGH);
@@ -103,69 +105,63 @@ void loop()
     if (client.connected())
     {
       client.loop();
-
-      //First - Check information from CA-SS00:
+      // do something here
       timer_sendTempHumi++;
-       if (timer_sendTempHumi > 3000)     // with timer = 100 equal to 1s
-       {
-        timer_sendTempHumi = 0;
+      if(timer_sendTempHumi >= 60){
+        timer_sendTempHumi = 0 ;
         float h = SS00.readHumidity();
         float t = SS00.readTemperature();
 
-        while (isnan(h) || isnan(t))
-        {
-          h = SS00.readHumidity();
-          t = SS00.readTemperature();
-          delay(5);
-        }
-
-        // Serial.print("Humidity: ");
-        // Serial.print(h);
-        // Serial.print(" %\n");
-        // Serial.print("Temperature: ");
-        // Serial.print(t);
-        // Serial.println(" oC\n");
+        // while(isnan(h) || isnan(t))
+        // {
+        //   h = SS00.readHumidity();
+        //   t = SS00.readTemperature();
+        //   delay(10);
+        // }
 
         String sendTempHumi;
-        char payload_sendTempHumi[500];
-        StaticJsonDocument<500> JsonCA_SS00;
+        char payload_sendTempHumi[300];
+        StaticJsonDocument<300> JsonDoc;
+        JsonDoc["type"] = "CA-SS00";
+        JsonDoc["temperture"] = t;
+        JsonDoc["humidity"] = h;
+        serializeJson(JsonDoc,sendTempHumi);
+        // Serial.println(sendTempHumi);
+        sendTempHumi.toCharArray(payload_sendTempHumi,sendTempHumi.length() + 1);
+        client.publish(CA_SS00,payload_sendTempHumi,true);
 
-        JsonCA_SS00["type"] = CA_SS00;
-        JsonCA_SS00["temperature"] = t;
-        JsonCA_SS00["humidity"] = h;
-        serializeJson(JsonCA_SS00, sendTempHumi);
-
-        sendTempHumi.toCharArray(payload_sendTempHumi, sendTempHumi.length() + 1);
-        client.publish(CA_SS00, payload_sendTempHumi, true);
       }
-      
-      //Send state of device when having anything changes from product:
       if (Serial.available())
-      {
-        String payload_MEGA = Serial.readString();
-        // Serial.println(payload_MEGA);
+      { 
+        String payload_MEGA = Serial.readStringUntil('\r');
+        // Serial.println(payload);
 
-        StaticJsonDocument<200> JsonDoc;
+        StaticJsonDocument<500> JsonDoc;
         deserializeJson(JsonDoc, payload_MEGA);
-        char payload_toChar[200];
-        payload_MEGA.toCharArray(payload_toChar, payload_MEGA.length() + 1);
-
+        payload_MEGA.toCharArray(payload_char, payload_MEGA.length() + 1);
         String type = JsonDoc["type"];
-        if (type == "CA-SWR")
+
+        if (type == "CA-SWR1")
         {
-          client.publish(CA_SWR, payload_toChar);
+          client.publish(CA_SWR, payload_char);
         }
         else if (type == "CA-SWR2")
         {
-          client.publish(CA_SWR2, payload_toChar);
+          client.publish(CA_SWR2, payload_char);
         }
         else if (type == "CA-SWR3")
         {
-          client.publish(CA_SWR3, payload_toChar);
+          client.publish(CA_SWR3, payload_char);
         }
-        else if (type == "CA-SS02")
+        if (type == "CA-SS02")
         {
-          client.publish(CA_SS02, payload_toChar);
+          client.publish(CASS02, payload_char);
+        }
+        if(type == "CA-SS03"){
+          client.publish(CASS03, payload_char);
+        }
+        if(type == "CA-SS04"){
+          client.publish(CASS04, payload_char);
         }
       }
     }
@@ -176,43 +172,58 @@ void loop()
   }
   else
   {
+    Serial.println("WiFi Connected Fail");
     WiFi.reconnect();
     digitalWrite(ledB, LOW);
     boolean state = digitalRead(ledR);
     digitalWrite(ledR, !state);
   }
+  delay(5);
 }
 
 void reconnect()
 {
-  while (!client.connected())
+  Serial.println("Attempting MQTT connection ...");
+  String clientId = "ESP8266Client-testX";
+  clientId += String(random(0xffff), HEX);
+  if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass))
   {
-    String clientId = "CA-HC_combination - ";
-    clientId += String(random(0xffff), HEX);
-
-    if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass))
-    {
-      Serial.println("Connected !");
-      Serial.flush();
-      client.subscribe(CA_SS02);
-      client.subscribe(CA_SWR);
-      client.subscribe(CA_SWR2);
-      client.subscribe(CA_SWR3);
-    }
-    else
-    {
-      delay(1000);
-    }
+    Serial.println("connected");
+    // client.subscribe(HomeCenter);
+    client.subscribe(CA_SWR);
+    client.subscribe(CA_SWR2);
+    client.subscribe(CA_SWR3);
+    client.subscribe(CASS02);
+    client.subscribe(CASS03);
+    client.subscribe(CASS04);
+  }
+  else
+  {
+    Serial.print("MQTT Connected Fail, rc = ");
+    Serial.print(client.state());
+    Serial.println("try again in 5 seconds");
   }
 }
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
-    for (unsigned int i = 0; i < length; i++)
-    {
-      Serial.print((char)payload[i]);
-    }
-    Serial.flush();
+  // Serial.print("Message arrived [");
+  // Serial.print(topic);
+  // Serial.print("] ");
+  // String data;
+  // String mtopic = (String)topic;
+
+  for (uint16_t i = 0; i < length; i++)
+  {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+  
+  // if (mtopic == HomeCenter)
+  // {
+  //   // Serial.print(length);
+  //   Serial.println(data);  
+  // }
 }
 
 void tick()
@@ -250,6 +261,7 @@ boolean startSmartConfig()
     delay(500);
     if (t > 100)
     {
+      Serial.println("Smart Config fail");
       ticker.attach(0.5, tick);
       delay(3000);
       exitSmartConfig();
@@ -271,12 +283,13 @@ void longPress()
     if (buttonActive == false)
     {
       buttonActive = true;
-      timer = millis();
-      Serial.println(timer);
+      timer_smartConfig = millis();
+      Serial.println(timer_smartConfig);
     }
 
-    if (millis() - timer > longPressTime)
+    if (millis() - timer_smartConfig > longPressTime)
     {
+      Serial.println("SmartConfig Start");
       digitalWrite(ledB, LOW);
       startSmartConfig();
     }
