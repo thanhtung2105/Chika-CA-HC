@@ -5,201 +5,261 @@
         - CA-SS00: {"id":"f7a3bde5-5a85-470f-9577-cdbf3be121d4", "type":"CA-SS00", "RF_channel": "none"}
         - CA-SS02: {"id":"9d860c55-7899-465b-9fb3-195ae0c0959a", "type":"CA-SS02", "RF_channel": 1002502019004}
  */
-
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <RF24.h>
 #include <SPI.h>
+#include <RF24.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <ArduinoJson.h>
+#include <EEPROM.h>
 
 #define CE 9
 #define CSN 53
+#define dht_pin A0
+#define dht_type DHT22
+
+
+DHT dht(dht_pin, dht_type);
 
 RF24 radio(CE, CSN);
-//Type to determined which kind of CA-SWRx:
-const char *CA_SWR = "CA-SWR";
-const char *CA_SWR2 = "CA-SWR2";
-const char *CA_SWR3 = "CA-SWR3";
 
-const char *CA_SS02 = "CA-SS02";
+const uint64_t address[5] = {1002502019001, 1002502019003, 1002502019004, 1002502019005, 1002502019006};
+//1002502019002 - CA-SW2, 1002502019003 - CA-SW3, 1002502019004 - PIR , 1002502019005 AQI, 1002502019005 Flame&Gas
 
-//RF Channel to communicate with CA-SWRx product:
-const uint64_t address_CA_SWR = 1002502019001;
-const uint64_t address_CA_SWR2 = 1002502019002;
-const uint64_t address_CA_SWR3 = 1002502019003;
-
-const uint64_t address_CA_SS02 = 1002502019004;
-
-boolean control_CA_SWRx[3];   //Control form MQTT
-boolean sendState_CA_SWRx[3]; //Send to MQTT
-
-uint32_t data_CA_SS02[3];
-
+float dhtValue[3];
+float incomingValue[3], HCCommand[3];
 uint8_t pipeNum;
+
+uint32_t timer = 0;
 
 void setup()
 {
-  SPI.begin();
-  Serial.begin(9600);
-  Serial3.begin(115200); //Open communicate gate with ESP
-
-  radio.begin();
-  radio.setRetries(15, 15);
-  radio.setPALevel(RF24_PA_MAX);
-  radio.printDetails();
-
-  Serial.println("MEGA2560 is ready !");
+    Serial.begin(9600);
+    Serial3.begin(115200);  
+    Serial.println("Serial Mega ready");
+    SPI.begin();
+    //========================RF========================
+    radio.begin();
+    radio.setRetries(15, 15);
+    radio.setPALevel(RF24_PA_MAX);
+    //==================================================
+    dht.begin();
 }
 
 void loop()
 {
-  //First - Waiting from any control command from MQTT - ESP ?!
-  if (Serial3.available())
-  {
-    String payload_ESP = Serial3.readStringUntil('\r');
+    delay(100);
 
-    Serial.println(payload_ESP);
+    //================= Listen RF ===================
+    radio.openReadingPipe(1, address[0]);
+    radio.openReadingPipe(2, address[1]);
+    radio.openReadingPipe(3, address[2]);
+    radio.openReadingPipe(4, address[3]);
+    radio.openReadingPipe(5, address[4]);
+    radio.startListening();
 
-    StaticJsonDocument<200> JsonDoc_ESP;
-    deserializeJson(JsonDoc_ESP, payload_ESP);
-    String type = JsonDoc_ESP["type"];
+    if (radio.available(&pipeNum))
+    { // signal from RF
+        radio.read(&incomingValue, sizeof(incomingValue));
+        switch (pipeNum)
+        {
+        case 1:
+        {
+            StaticJsonDocument<500> JsonDoc;
+            JsonDoc["type"] = "CA-SWR1";
+            JsonDoc["button_1"] = (boolean)incomingValue[0];
+            // JsonDoc["button_2"] = (boolean)incomingValue[1];
+            String payload;
+            serializeJson(JsonDoc, payload);
+            Serial.println(payload);
+            Serial3.println(payload);
+            break;
+        }
+        case 2:
+        {
+            StaticJsonDocument<500> JsonDoc;
+            JsonDoc["type"] = "CA-SWR3";
+            JsonDoc["button_1"] = (boolean)incomingValue[0];
+            JsonDoc["button_2"] = (boolean)incomingValue[1];
+            JsonDoc["button_3"] = (boolean)incomingValue[2];
+            String payload;
+            serializeJson(JsonDoc, payload);
+            Serial.println(payload);
+            Serial3.println(payload);
+            break;
+        }
+        case 3: // PIR
+        {
+            String output;
+            output += F("PipeNum: ");
+            output += pipeNum;
+            output += F("\t waring: ");
+            output += incomingValue[0];
+            output += F("\t Delay time: ");
+            output += incomingValue[1];
+            output += F("\t State of device: ");
+            output += incomingValue[2];
+            // Serial.println(output);
 
-    boolean button_1 = JsonDoc_ESP["button_1"];
-    boolean button_2 = JsonDoc_ESP["button_2"];
-    boolean button_3 = JsonDoc_ESP["button_3"];
+            StaticJsonDocument<500> JsonDoc;
+            JsonDoc["type"] = "CA-SS02";
+            JsonDoc["auto"] = incomingValue[0];
+            JsonDoc["delayTime"] = incomingValue[1]/1000;
+            JsonDoc["state"] = incomingValue[2];
+            String payload;
+            serializeJson(JsonDoc, payload);
+            Serial3.print(payload);
+            Serial3.println();
+            break;
+        }
 
-    boolean mode = JsonDoc_ESP["mode"];
-    int delayTime = JsonDoc_ESP["delayTime"];
+        case 4: // AQI
+        {
+            String output;
+            output += F("PipeNum: ");
+            output += pipeNum;
+            output += F("\t Temperature : ");
+            output += incomingValue[0];
+            output += F(" 0C \t Humidity : ");
+            output += incomingValue[1];
+            output += F(" % \t Air Quality : ");
+            output += incomingValue[2];
+            output += F(" ppm");
+            // Serial.println(output);
 
-    radio.stopListening(); //Change mode from Send_stateDevice to Control_device
-    if (type == CA_SWR)
-    {
-      radio.openWritingPipe(address_CA_SWR);
-      control_CA_SWRx[0] = button_1;
-      radio.write(&control_CA_SWRx, sizeof(control_CA_SWRx));
+            StaticJsonDocument<500> JsonDoc;
+            JsonDoc["type"] = "CA-SS03";
+            JsonDoc["temperture"] = incomingValue[0];
+            JsonDoc["humidity"] = incomingValue[1];
+            JsonDoc["AQI"] = incomingValue[2];
+            String payload;
+            serializeJson(JsonDoc, payload);
+            Serial3.print(payload);
+            Serial3.println();
+            break;
+        }
 
-      Serial.println("Receive control command from CA-SWR: ");
-      Serial.print("Button: ");
-      Serial.println(button_1);
-      Serial.println();
-    }
-    else if (type == CA_SWR2)
-    {
-      radio.openWritingPipe(address_CA_SWR2);
-      control_CA_SWRx[0] = button_1;
-      control_CA_SWRx[1] = button_2;
-      radio.write(&control_CA_SWRx, sizeof(control_CA_SWRx));
+        case 5: // flame & gas
+        {
+            String output;
+            output += F("PipeNum: ");
+            output += pipeNum;
+            output += F("\t Flame : ");
+            output += incomingValue[0];
+            output += F("\t gas : ");
+            output += incomingValue[1];
+            output += F("\t warning : ");
+            output += incomingValue[2];
+            // Serial.println(output);
 
-      Serial.println("Receive control command from CA-SWR2: ");
-      Serial.print("Button 1: ");
-      Serial.println(button_1);
-      Serial.print("Button 2: ");
-      Serial.println(button_2);
-      Serial.println();
-    }
-    else if (type == CA_SWR3)
-    {
-      radio.openWritingPipe(address_CA_SWR3);
-      control_CA_SWRx[0] = button_1;
-      control_CA_SWRx[1] = button_2;
-      control_CA_SWRx[2] = button_3;
-      radio.write(&control_CA_SWRx, sizeof(control_CA_SWRx));
+            StaticJsonDocument<500> JsonDoc;
+            JsonDoc["type"] = "CA-SS04";
+            JsonDoc["flame"] = incomingValue[0];
+            JsonDoc["gas"] = incomingValue[1];
+            JsonDoc["warning"] = incomingValue[2];
+            String payload;
+            serializeJson(JsonDoc, payload);
+            Serial3.print(payload);
+            Serial3.println();
+            break;
+        }
 
-      Serial.println("Receive control command from CA-SWR3: ");
-      Serial.print("Button 1: ");
-      Serial.println(button_1);
-      Serial.print("Button 2: ");
-      Serial.println(button_2);
-      Serial.print("Button 3: ");
-      Serial.println(button_3);
-      Serial.println();
-    }
-    else if (type == CA_SS02)
-    {
-      radio.openWritingPipe(address_CA_SS02);
-      data_CA_SS02[0] = mode;
-      data_CA_SS02[1] = delayTime * 1000;
-      radio.write(&data_CA_SS02, sizeof(data_CA_SS02));
+        default:
+            break;
+        }
+    } // end condition of radio RF
+    // Serial.println("Delay time is starting");
+     delay(10);
 
-      Serial.println("Receive control command from CA-SS02: ");
-      Serial.print("Mode: ");
-      Serial.println(data_CA_SS02[0]);
-      Serial.print("New delay time: ");
-      Serial.println(data_CA_SS02[1]);
-      Serial.println();
-    }
-  }
+    //==============Listen esp=======================
 
-  //Second - Send state of device when having anything changes from product:
-  radio.openReadingPipe(1, address_CA_SWR);
-  radio.openReadingPipe(2, address_CA_SWR2);
-  radio.openReadingPipe(3, address_CA_SWR3);
-  radio.openReadingPipe(4, address_CA_SS02);
-  radio.startListening();
+    if (Serial3.available())
+    { // order from ESP
+        String payload;
+        payload = Serial3.readStringUntil('\r');
+        Serial.println(payload);
+        radio.stopListening();
 
-  if (radio.available(&pipeNum))
-  {
-    Serial.print("Change state device from pipe's device ");
-    Serial.println(pipeNum);
+        StaticJsonDocument<500> JsonDoc;
+        deserializeJson(JsonDoc, payload);
 
-    String payload_MEGA;
-    StaticJsonDocument<200> JsonDoc_MEGA;
-    switch (pipeNum)
-    {
-    case 1:
-      /* Reading Pipe from address of CA_SWR */
-      memset(&sendState_CA_SWRx, ' ', sizeof(sendState_CA_SWRx));
-      radio.read(&sendState_CA_SWRx, sizeof(sendState_CA_SWRx));
+        String type = JsonDoc["type"];
+        if (type == "CA-SS04")
+        {
+            boolean warning = JsonDoc["warning"];
+            Serial.print("CA-SS04 warning : ");
+            Serial.println(warning);
+            HCCommand[0] = warning;
+            radio.openWritingPipe(address[4]);
+            radio.write(&HCCommand, sizeof(HCCommand));
+            delay(5);
+        }
+        if (type == "CA-SS02")
+        {
+            boolean state = JsonDoc["auto"];
+            uint16_t delayTime = JsonDoc["delayTime"];
+            Serial.print("CA-SS02 light : ");
+            Serial.print(state);
+            Serial.print("\t delay time set in : ");
+            Serial.println(delayTime);
+            HCCommand[0] = state;
+            HCCommand[1] = delayTime * 1000; // đôi lúc không gửi delayTime
+            radio.openWritingPipe(address[2]);
+            radio.write(&HCCommand, sizeof(HCCommand));
+            delay(5);
+        }
 
-      JsonDoc_MEGA["type"] = "CA-SWR";
-      JsonDoc_MEGA["button_1"] = sendState_CA_SWRx[0];
-      serializeJson(JsonDoc_MEGA, payload_MEGA);
-      Serial3.print(payload_MEGA);
-      Serial.println(payload_MEGA);
-      break;
+        if (type == "CA-SWR1")
+        {
+            boolean button_1 = JsonDoc["button_1"];
 
-    case 2:
-      /* Reading Pipe from address of CA_SWR2 */
-      memset(&sendState_CA_SWRx, ' ', sizeof(sendState_CA_SWRx));
-      radio.read(&sendState_CA_SWRx, sizeof(sendState_CA_SWRx));
+            Serial.println("Receive control command from CA-SWR2: ");
+            Serial.print("Button 1: ");
+            Serial.println(button_1);
 
-      JsonDoc_MEGA["type"] = "CA-SWR2";
-      JsonDoc_MEGA["button_1"] = sendState_CA_SWRx[0];
-      JsonDoc_MEGA["button_2"] = sendState_CA_SWRx[1];
-      serializeJson(JsonDoc_MEGA, payload_MEGA);
-      Serial3.print(payload_MEGA);
-      Serial.println(payload_MEGA);
-      break;
+            HCCommand[0] = button_1;
+            radio.openWritingPipe(address[0]);
+            radio.write(&HCCommand, sizeof(HCCommand));
+        }
 
-    case 3:
-      /* Reading Pipe from address of CA_SWR3 */
-      memset(&sendState_CA_SWRx, ' ', sizeof(sendState_CA_SWRx));
-      radio.read(&sendState_CA_SWRx, sizeof(sendState_CA_SWRx));
+        if (type == "CA-SWR2")
+        {
+            boolean button_1 = JsonDoc["button_1"];
+            boolean button_2 = JsonDoc["button_2"];
 
-      JsonDoc_MEGA["type"] = "CA-SWR3";
-      JsonDoc_MEGA["button_1"] = sendState_CA_SWRx[0];
-      JsonDoc_MEGA["button_2"] = sendState_CA_SWRx[1];
-      JsonDoc_MEGA["button_3"] = sendState_CA_SWRx[2];
-      serializeJson(JsonDoc_MEGA, payload_MEGA);
-      Serial3.print(payload_MEGA);
-      Serial.println(payload_MEGA);
-      break;
+            Serial.println("Receive control command from CA-SWR2: ");
+            Serial.print("Button 1: ");
+            Serial.println(button_1);
+            Serial.print("Button 2: ");
+            Serial.println(button_2);
 
-    case 4:
-      /* Reading Pipe from address of CA_SS02 */
-      memset(&data_CA_SS02, ' ', sizeof(data_CA_SS02));
-      radio.read(&data_CA_SS02, sizeof(data_CA_SS02));
+            HCCommand[0] = button_1;
+            HCCommand[1] = button_2;
+            radio.openWritingPipe(address[0]);
+            radio.write(&HCCommand, sizeof(HCCommand));
+        }
+        if (type == "CA-SWR3")
+        {
+            boolean button_1 = JsonDoc["button_1"];
+            boolean button_2 = JsonDoc["button_2"];
+            boolean button_3 = JsonDoc["button_3"];
+            
+            Serial.println("Receive control command from CA-SWR3: ");
+            Serial.print("Button 1: ");
+            Serial.println(button_1);
+            Serial.print("Button 2: ");
+            Serial.println(button_2);
+            Serial.print("Button 3: ");
+            Serial.println(button_3);
 
-      JsonDoc_MEGA["type"] = "CA-SS02";
-      JsonDoc_MEGA["mode"] = data_CA_SS02[0];
-      JsonDoc_MEGA["delayTime"] = data_CA_SS02[1];
-      JsonDoc_MEGA["deviceState"] = data_CA_SS02[2];
-      serializeJson(JsonDoc_MEGA, payload_MEGA);
-      Serial3.print(payload_MEGA);
-      Serial.println(payload_MEGA);
-      break;
+            HCCommand[0] = button_1;
+            HCCommand[1] = button_2;
+            HCCommand[2] = button_3;
+            radio.openWritingPipe(address[1]);
+            radio.write(&HCCommand, sizeof(HCCommand));
+        }
 
-    default:
-      break;
-    }
-  }
+    } // end condition of communicate to ESP
+    // Serial.println("Delay Time is end");
 }
