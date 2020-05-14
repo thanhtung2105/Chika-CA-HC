@@ -1,5 +1,5 @@
 //The future is always a blank page
-//1002502019002 - CA-SW2, 1002502019003 - CA-SW3, 1002502019004 - PIR , 1002502019005 AQI, 1002502019005 Flame&Gas
+//1002502019002 - CA-SW2, 1002502019003 - CA-SW3, 1002502019004 - PIR , 1002502019005 - AQI, 1002502019006 Flame&Gas
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -17,7 +17,7 @@
 #define CSN 53
 #define dht_pin A0
 #define dht_type DHT22
-#define PIN 6
+#define PIN 6               // Pin pixel
 #define NUMPIXELS 8
 #define DELAYVAL 100
 
@@ -56,6 +56,7 @@ float Device_2_HC[3], HC_2_Device[3]; // Device_2_HC
 
 int numberOfKey = 3; // number of value of HC_2_Device
 int numberOfDevice, index;
+boolean tickLed = true;
 
 device CA_device[20]; //We have 20 Chika device :D
 
@@ -117,9 +118,22 @@ void loop()
 
         if (typeDevice.equals("SR"))
         {
-            JsonDoc["button1"] = CA_device[pipeNum - 1].value[0] = (bool)Device_2_HC[0]; //Json button 1 and store
-            JsonDoc["button2"] = CA_device[pipeNum - 1].value[1] = (bool)Device_2_HC[1]; //Json button 2 and store
-            JsonDoc["button3"] = CA_device[pipeNum - 1].value[2] = (bool)Device_2_HC[2]; //Json button 3 and store
+            // JsonDoc["button1"] = CA_device[pipeNum - 1].value[0] = (bool)Device_2_HC[0]; //Json button 1 and store
+            // JsonDoc["button2"] = CA_device[pipeNum - 1].value[1] = (bool)Device_2_HC[1]; //Json button 2 and store
+            // JsonDoc["button3"] = CA_device[pipeNum - 1].value[2] = (bool)Device_2_HC[2]; //Json button 3 and store
+
+            // for(int i = 0 ; i < 3 ; i++)
+            // {
+            //     if(Device_2_HC[i] != CA_device[pipeNum - 1].value[i]){
+            //         JsonDoc["button"] = i + 1;
+            //         JsonDoc["state"] = Device_2_HC[i];
+            //         CA_device[pipeNum - 1].value[i] = Device_2_HC[i]; 
+            //     }
+            // }
+
+            JsonDoc["button"] = CA_device[pipeNum - 1].value[0] = (int)Device_2_HC[0];
+            JsonDoc["state"] = CA_device[pipeNum - 1].value[2] = (boolean)Device_2_HC[1];
+
             String payload;
             serializeJson(JsonDoc, payload); //encode Json to String
             Serial.println(payload);
@@ -169,8 +183,36 @@ void loop()
     {
         String payload;
         payload = Serial3.readStringUntil('\r'); //get data from esp
+        Serial.print("ESP: ");
         Serial.println(payload);
         radio.stopListening(); // stop listen for transmite
+
+        // set state when processing
+        if (payload.equals("."))
+        {
+            tickLed = !tickLed;
+            int rangeRGB = map(tickLed, 0, 1, 0, 255);
+            pixels.setPixelColor(0, rangeRGB, 0, 0);
+            pixels.show();
+        }
+        if (payload.equals("connected"))
+        {
+            NS_red[0] = 0;
+            NS_green[0] = 0;
+            NS_blue[0] = 255;
+            pixels.setPixelColor(0, NS_red[0], NS_green[0], NS_blue[0]);
+            pixels.show();
+        }
+        if (payload.equals("WiFi Connected Fail"))
+        {
+            NS_red[0] = 255;
+            NS_green[0] = 125;
+            NS_blue[0] = 0;
+            pixels.setPixelColor(0, NS_red[0], NS_green[0], NS_blue[0]);
+            pixels.show();
+        }
+
+        //processing of decode Json and send command to device
 
         JsonDoc.clear();
         deserializeJson(JsonDoc, payload);
@@ -232,7 +274,7 @@ void loop()
         }
         if (type.equals("CA_SR"))
         {
-            String key[numberOfKey] = {"button1", "button2", "button3"}; // array key in Json
+            String key[numberOfKey] = {"button", "state"}; // array key in Json
 
             Serial.println("Receive control command for CA_SR: ");
             for (int i = 0; i < numberOfKey; i++) // get value from Json
@@ -329,7 +371,6 @@ void initial()
 
             if (payload == "On_SmartConfig") // ESP startSmartConfig
             {
-                boolean tickLed = true;
                 while (1)
                 {
                     processing();
@@ -348,7 +389,7 @@ void initial()
                         if (payload.equals("WIFI_CONNECTED"))
                         {
                             NS_red[0] = 0;
-                            NS_green[0] = 50;
+                            NS_green[0] = 0;
                             NS_blue[0] = 255;
                             pixels.setPixelColor(0, NS_red[0], NS_green[0], NS_blue[0]);
                             pixels.show();
@@ -357,7 +398,7 @@ void initial()
                         if (payload.equals("SmartConfig_fail"))
                         {
                             NS_red[0] = 255;
-                            NS_green[0] = 100;
+                            NS_green[0] = 125;
                             NS_blue[0] = 0;
                             pixels.setPixelColor(0, NS_red[0], NS_green[0], NS_blue[0]);
                             pixels.show();
@@ -371,7 +412,7 @@ void initial()
             if (payload.equals("WIFI_CONNECTED"))
             {
                 NS_red[0] = 0;
-                NS_green[0] = 50;
+                NS_green[0] = 0;
                 NS_blue[0] = 255;
                 pixels.setPixelColor(0, NS_red[0], NS_green[0], NS_blue[0]);
                 pixels.show();
@@ -457,14 +498,14 @@ void initial()
                             if (payloadOK == "OK")
                             {
                                 NS_blue[i + 3] = 255; // set state device on led line in normal mode
-                                NS_green[i + 3] = 50;
+                                NS_green[i + 3] = 255;
                                 NS_red[i + 3] = 0; // 3 first led is WiFi temp and humi, 5 device is next led
                                 break;
                             }
                             if (payloadOK == "Wrong")
                             {
                                 NS_red[i + 3] = 255;
-                                NS_green[i + 3] = 100;
+                                NS_green[i + 3] = 125;
                                 NS_blue[i + 3] = 0;
                                 Serial.println("Data have wrong");
                                 break;
