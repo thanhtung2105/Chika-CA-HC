@@ -14,10 +14,8 @@ My Graduate Thesis project work co-operate with Chika Corporation 智家 (チカ
 
 - Sensors system: CA - SS.
 
-
-![image](https://user-images.githubusercontent.com/48848418/72683184-a8249100-3b07-11ea-97ea-71700537be0d.png)
-
-![System](https://user-images.githubusercontent.com/48848418/82010383-1fc09200-969c-11ea-9c56-b47908f8ae2a.png)
+![93224958_2582388615361445_2680312884105314304_o](https://user-images.githubusercontent.com/48848418/82010978-dc672300-969d-11ea-8afe-408d4ac53319.jpg)
+![System](https://user-images.githubusercontent.com/48848418/82010508-7c23b180-969c-11ea-9d99-2828714f36b0.png)
 
 ⚙️ My sample of product - CA-HC 💎
 ![97171935_848003275676521_990564151610834944_n](https://user-images.githubusercontent.com/48848418/82010359-12a3a300-969c-11ea-8804-9f1a70357d2a.jpg)
