@@ -18,6 +18,7 @@ My Graduate Thesis project work co-operate with Chika Corporation 智家 (チカ
 ![System](https://user-images.githubusercontent.com/48848418/82010508-7c23b180-969c-11ea-9d99-2828714f36b0.png)
 
 ⚙️ My sample of product - CA-HC 💎
+
 ![97171935_848003275676521_990564151610834944_n](https://user-images.githubusercontent.com/48848418/82010359-12a3a300-969c-11ea-8804-9f1a70357d2a.jpg)
 ![97020577_238500167478073_2442936978027577344_n](https://user-images.githubusercontent.com/48848418/82010378-19cab100-969c-11ea-8ef0-262ff9a43d13.jpg)
 ![96835006_2665905923655496_4760847389349117952_n](https://user-images.githubusercontent.com/48848418/82010380-1c2d0b00-969c-11ea-9041-078909999382.jpg)
